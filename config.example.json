@@ -1,0 +1,32 @@
+{
+  "base_dir": "C:\\Users\\you",
+  "profiles": {
+    "git@github.com:foocorp/barapp.git": {
+      "variables": {
+        "build_cfg": "Release",
+        "arch": "x86",
+        "vm_dest_dir": "C:/Progra~2/FooCorp/BarApp Client"
+      },
+      "source_dirs": {
+        "barapp/bin/{build_cfg}": ["{vm_dest_dir}"]
+      },
+      "optional_dirs": {
+        "barapp/symbols/{build_cfg}": ["{vm_dest_dir}/symbols"]
+      },
+      "source_files": {
+        "tools/helper.dll": "{vm_dest_dir}"
+      },
+      "exclude": ["*.pdb", "*.ilk", "*\\obj\\*"],
+      "pre_sync": [
+        { "op": "stop_service", "args": { "name": "FooSvc" } },
+        { "op": "stop_process", "args": { "name": "BarApp.exe" } },
+        { "op": "remove_files", "args": { "paths": ["{vm_dest_dir}/libfoodrv.sys"] } }
+      ],
+      "post_sync": [
+        { "op": "delete_files", "args": { "paths": ["{vm_dest_dir}/logs"] } },
+        { "op": "start_service", "args": { "name": "FooSvc" } },
+        { "op": "start_process", "args": { "exe_path": "{vm_dest_dir}/FooCorpClientUI.exe", "args": ["showUI"] } }
+      ]
+    }
+  }
+}
