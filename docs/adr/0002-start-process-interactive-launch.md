@@ -38,9 +38,9 @@ schtasks /delete /tn <unique> /f
 - `/it` runs the task in the specified user's **interactive console session**, so
   the GUI appears on the desktop. It also uses the interactive token, so **no
   password (`/rp`) is needed on the command line**.
-- `/ru <ssh-user>` reuses the connection's SSH username. We assume the VM's
-  interactive console user equals the SSH/vmctl guest account and is
-  auto-logged-in at the console (true for the test VMs and the BarApp dev VMs).
+- `/ru <ssh-user>` reuses the connection's SSH username. We assume the target's
+  interactive console user equals the SSH login account and is auto-logged-in at
+  the console (true for the test and dev machines).
 - The exe path is wrapped in escaped inner quotes inside `/tr`, with args
   appended directly. Task Scheduler launches the exe **directly** (no `cmd /c`
   wrapper), so the spawned `Win32_Process.CommandLine` equals the `/tr` content —

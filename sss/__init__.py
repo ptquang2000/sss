@@ -3,9 +3,10 @@
 Two entry points:
 
 * CLI -- ``sss sync``, ``sss exec``, ``sss service stop`` ... (see ``cli.py``).
-* Library -- subsystem accessors on a connected ``Sss`` session, vmctl-style::
+* Library -- subsystem accessors on a connected ``Sss`` session::
 
       s = connect(host="10.0.0.5", user="test", password="test", profile=profile)
+      # host is required; user/password are optional (publickey/agent works too)
       s.service.stop("FooSvc")
       s.sync.run()
       s.exec("hostname")
@@ -23,7 +24,7 @@ from .modules.process import WindowsProcessModule
 from .modules.service import WindowsServiceModule
 from .scripts import ScriptRunner
 from .sync import SyncEngine
-from .target import Target, VmProvider
+from .target import Target
 
 __all__ = ["Sss", "connect", "Profile", "SssError"]
 
@@ -100,15 +101,15 @@ def connect(
     profile: Profile = None,
     project_dir: str = None,
     extra_vars: dict = None,
-    vm_provider: VmProvider = None,
     base_dir: str = None,
     log: Callable[[str], None] = None,
 ) -> Sss:
     """Resolve a target, open the connection, and return a ready ``Sss`` session.
 
-    ``host`` targets a remote machine over SSH; omit it to auto-detect the
-    running VM via vmctl. The profile is taken as given, else auto-selected from
-    the project's git remote.
+    ``host`` is required -- the machine to reach over SSH; a missing host fails
+    fast. ``user`` / ``password`` are optional (publickey/agent auth works
+    without them). The profile is taken as given, else auto-selected from the
+    project's git remote for sync/lifecycle.
     """
     if profile is None:
         config = load_config()
@@ -120,6 +121,6 @@ def connect(
             base_dir = (config or {}).get("base_dir")
 
     connection, meta = Target.resolve(
-        host=host, user=user, password=password, port=port, vm_provider=vm_provider
+        host=host, user=user, password=password, port=port
     )
     return Sss(connection, profile=profile, base_dir=base_dir, meta=meta, log=log)

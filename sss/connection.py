@@ -2,8 +2,8 @@
 
 `Connection` is the OS-agnostic interface the primitives sit on: exec a
 command, put a file, stat / mkdir / list remote paths. The single concrete
-implementation (`SSHConnection`, Paramiko SFTP) backs both VM and remote-host
-targets. The abstraction is what lets primitives stay portable later.
+implementation (`SSHConnection`, Paramiko SFTP) backs any SSH-reachable target
+machine. The abstraction is what lets primitives stay portable later.
 """
 
 import posixpath

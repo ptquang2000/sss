@@ -1,8 +1,9 @@
-"""Click CLI mirroring vmctl's command-group shape.
+"""Click CLI for sss.
 
-Target selection is shared across commands: pass ``--host/--user`` for a remote
-machine, or omit them to auto-detect the running VM. Bare ``sss sync`` runs the
-full profile lifecycle (pre_sync -> sync -> post_sync).
+Target selection is shared across commands: ``--host`` is required and names the
+machine to reach over SSH; ``--user`` / ``--password`` are optional (publickey/
+agent auth works without them). Bare ``sss sync`` runs the full profile
+lifecycle (pre_sync -> sync -> post_sync).
 """
 
 import json
@@ -24,9 +25,9 @@ def _err(msg: str) -> None:
 
 def target_options(f):
     """Shared target / connection options for every command."""
-    f = click.option("--host", default=None, help="Remote machine IP/hostname (omit to auto-detect VM).")(f)
-    f = click.option("--user", default=None, help="SSH username (remote host).")(f)
-    f = click.option("--password", default=None, help="SSH password (remote host).")(f)
+    f = click.option("--host", required=True, help="Target machine IP/hostname (required).")(f)
+    f = click.option("--user", default=None, help="SSH username (optional; publickey/agent otherwise).")(f)
+    f = click.option("--password", default=None, help="SSH password (optional; publickey/agent otherwise).")(f)
     f = click.option("--port", default=22, show_default=True, help="SSH port.")(f)
     f = click.option("--project-dir", default=None, help="Repo dir for git-remote profile selection.")(f)
     return f

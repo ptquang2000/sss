@@ -1,9 +1,9 @@
-"""Live integration tests against a real SSH target (host or provisioned VM).
+"""Live integration tests against a real SSH host (``SSS_HOST``).
 
 Always run under plain ``pytest`` -- no opt-in env gate. The shared fixtures in
-``conftest.py`` provision/connect the target and **fail loudly** when setup is
-missing (mirroring vmctl's convention). Unit-only runs: ``pytest -k "not
-integration"``. See tests/INTEGRATION.md for setup.
+``conftest.py`` connect the target and **fail loudly** when setup is missing.
+Unit-only runs: ``pytest -k "not integration"``. See tests/INTEGRATION.md for
+setup.
 
 These cross the seams unit tests can't reach: real Paramiko SFTP and real
 Windows ``sc.exe`` / ``del`` / ``rmdir`` / ``taskkill`` semantics. Every

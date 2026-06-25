@@ -1,4 +1,6 @@
-"""Central config at ``~/.sss/config.json`` (mirrors vmctl's convention).
+"""Central config at ``~/.sss/config.json`` (a ``~/.<tool>/config.json`` path
+convention; no dependency implied -- config holds only ``base_dir`` + profiles,
+never any host or credentials).
 
 A profiles map is selected by the project's git-remote URL: run sss from inside
 a repo and it picks the matching profile. Each profile defines the sync mapping

@@ -4,27 +4,30 @@
 **package** that is usable two ways:
 
 1. **CLI tool** — a thin entrypoint over the library.
-2. **Library** — embeddable, intended for an eventual (not-yet-existing) "vm mcp server".
+2. **Library** — embeddable; consumed directly by other tools (e.g. vmctl, an
+   eventual MCP server).
 
-Primary purpose: **sync files between machines over SSH**, plus run a fixed set of
-**high-level operations** ("primitives") on the target.
+Primary purpose: **sync files to a machine over SSH**, plus run a fixed set of
+**high-level operations** ("primitives") on that machine.
+
+`sss` is **standalone and target-agnostic**: it knows only how to reach a machine
+over SSH. It contains **no VMware / VM / vmctl code and takes no such dependency**
+— see [docs/adr/0004-standalone-no-vm-coupling.md](docs/adr/0004-standalone-no-vm-coupling.md),
+which supersedes the original [0001](docs/adr/0001-depend-on-vmctl.md). Tools that
+*do* know about VMs (such as vmctl) **depend on sss** and feed it a resolved
+`host`/credentials; sss never reaches back. This is the inverse of the original
+design.
 
 ## Glossary
 
-- **Target** — the machine sss acts on. Two kinds:
-  - **remote machine** — reachable over SSH only.
-  - **VM** — a local VMware Workstation guest, addressed via [vmctl](#vmctl).
+- **Target** — the machine sss acts on, reachable over **SSH**. It is supplied
+  **explicitly** by the caller (host + credentials); sss does not discover or
+  classify it. Whether that host happens to be a bare-metal box or a VM is opaque
+  to sss.
+  _Avoid_: treating "VM" as a kind of target inside sss — that distinction lives in
+  the *caller*, not here.
 - **Transport** — how sss moves bytes / runs commands on a target. **SSH is the only
-  sss transport.** File sync is *always* SSH (Paramiko SFTP), for both remote machines
-  and VMs.
-- **vmctl** — a separate, existing Python package + CLI (`../vmctl`) that wraps VMware
-  `vmcli.exe`/`vmrun.exe` with JSON-native, name-based VM addressing. sss **imports
-  vmctl as a library dependency**. For VM targets, sss delegates to vmctl for: VM
-  identity (by name), IP resolution, **guest credentials** (reused as the VM's SSH
-  login — single source of truth, no separate sss credential store), and guest command
-  execution. sss contains **no VMware code of its own** (the legacy ~400 lines of
-  `find_vmrun`/`vmcli`/DHCP-lease/`auto_detect_vm_ip`/guest-run are deleted). See
-  [docs/adr/0001-depend-on-vmctl.md](docs/adr/0001-depend-on-vmctl.md).
+  transport** (Paramiko SFTP for files, SSH exec for commands).
 - **Primitive** — a high-level operation sss exposes as both library API and script
   step. Fixed vocabulary: `stop_service` / `start_service`, `stop_process` /
   `start_process`, `remove_files` / `delete_files`, plus `sync` and `exec`.
@@ -40,7 +43,9 @@ Primary purpose: **sync files between machines over SSH**, plus run a fixed set 
   service-session launch is invisible, `start_process` launches via a one-shot
   **interactive scheduled task** (`schtasks /it /ru <ssh-user>`). It is
   **fire-and-forget**: success means the launch was triggered, not that the child
-  is still alive. _Avoid_: "Start-Process" (the rejected mechanism), "spawn".
+  is still alive. This is a property of Windows-over-SSH, **not** of VMs — it
+  applies to any Windows target with an interactive console session logged on.
+  _Avoid_: "Start-Process" (the rejected mechanism), "spawn".
   See [docs/adr/0002-start-process-interactive-launch.md](docs/adr/0002-start-process-interactive-launch.md).
 - **sync** — the **profile-driven** transfer. Expands the resolved profile's
   `source_dirs`/`source_files` mapping (sources relative to `base_dir`), honors the
@@ -71,59 +76,68 @@ Primary purpose: **sync files between machines over SSH**, plus run a fixed set 
 
 ## Target addressing
 
-- **Default**: sss asks vmctl for the running VM and targets it. If **no VM is
-  running, sss exits** (no manual-IP prompt, unlike legacy).
-- **Override**: `--host IP --user ...` targets a **remote non-VM machine** over SSH
-  instead. VM is the default path; remote host is the explicit path.
+- **The caller always supplies the target explicitly.** CLI: `--host <ip/name>`
+  (required) plus `--user` / `--password` / `--port` (`--user`/`--password` optional
+  when SSH keys/agent suffice). Library: `connect(host=..., user=..., password=...,
+  port=...)`.
+- **No auto-detection, no stored default target.** sss never scans for a "running"
+  anything and stores **no host or credentials** in its config. If `host` is missing,
+  sss errors clearly rather than guessing.
+- **A VM-aware caller (e.g. vmctl) resolves the guest IP + credentials itself and
+  passes them in.** That is how vmctl "inherits" sss's sync features without sss
+  knowing what a VM is.
 
 ## Sync config
 
-- Single **central config** at `~/.sss/config.json` (mirrors vmctl's
-  `~/.vmctl/config.json` location/convention).
-- The mapping that applies is **auto-selected by the project's git-remote URL** (legacy
-  UX preserved): run sss from inside the repo, it picks the matching profile.
-- A profile defines the sync mapping (`source_dirs` → dest, `exclude`, individual
-  `source_files`) and the lifecycle **scripts/hooks** (declarative primitive steps).
+- Single **central config** at `~/.sss/config.json`. (Path/style coincidentally
+  resembles `~/.vmctl/config.json`; this is a convention, **not** a dependency or a
+  shared file.)
+- The config holds **only profiles** — the sync mapping (`source_dirs` → dest,
+  `optional_dirs`, `exclude`, individual `source_files`) and the lifecycle
+  **scripts/hooks** (declarative primitive steps). It holds **no target/host/
+  credentials** (those are strictly CLI/library arguments).
+- The profile that applies is **auto-selected by the project's git-remote URL**
+  (legacy UX preserved): run sss from inside the repo and it picks the matching
+  profile. Falls back to the sole profile when exactly one is configured.
 
 ## Command execution model
 
-- **Remote machine**: simple commands run over **SSH**.
-- **VM**: simple commands run over **SSH or vmctl** (vmctl guest-run when no network /
-  SSH path is available).
+- **All commands run over SSH.** There is a single execution path; sss has no
+  alternate (e.g. hypervisor guest-run) channel.
 
-## Public API & CLI shape (mirrors vmctl)
+## Public API & CLI shape
 
-- **Library**: subsystem accessors, like vmctl's `vm.power.start()`. e.g.
-  `s.service.stop(name)`, `s.process.kill(name)`, `s.files.remove([...])`,
-  `s.sync.run()`, `s.exec(cmd)`. An MCP server calls these directly.
-- **CLI**: Click command groups mirroring vmctl. e.g. `sss sync`, `sss exec <cmd>`,
-  `sss service stop <name>`, `sss process kill <name>`. Plus `sss push <source>
-  <dest>` for an ad-hoc, profile-less transfer (see **push** in the glossary).
+- **Library**: subsystem accessors, e.g. `s.service.stop(name)`,
+  `s.process.kill(name)`, `s.files.remove([...])`, `s.sync.run()`,
+  `s.sync.path(src, dest)`, `s.exec(cmd)`. `connect(host=..., user=..., password=...)`
+  builds a ready session — this is the seam an MCP server or vmctl calls directly.
+- **CLI**: Click command groups. e.g. `sss sync`, `sss push <source> <dest>`,
+  `sss exec <cmd>`, `sss service stop <name>`, `sss process kill <name>`. Every
+  command takes the shared `--host/--user/--password/--port` target options.
   `push` does not require a profile to be resolved.
-- Package layout follows vmctl: `cli.py`, `config.py`, a registry/session, a `runner`,
-  and a `modules/` (or subsystems) dir per primitive group.
+- Package layout: `cli.py`, `config.py`, `connection.py` (the SSH transport),
+  `target.py` (builds an `SSHConnection` from explicit host/creds), `sync.py`, a
+  `scripts.py` runner, and a `modules/` dir per primitive group.
 
 ## Out of scope / dropped from legacy
 
 - Transports `scp`, `unc` (net use + PowerShell remoting), and `local` are **dropped**
   (only `ssh` survives).
+- **All VMware/VM detection is out of scope** — `find_vmrun`/`vmcli`/DHCP-lease/
+  `auto_detect_vm_ip`/guest-run never belonged in a sync tool. A VM-control tool
+  (vmctl) owns that and feeds sss a host.
 - All baked-in BarApp specifics (FooSvc, BarApp.exe, drv1/drv2/drv3/drv4 drivers, log
   cleanup, FooCorpClientUI relaunch) become **user-authored declarative scripts**, not
   sss code.
 
-## Migration approach
+## Testing
 
-**Clean package build**, not an in-place transform. Start fresh as a proper Python
-package (`pyproject.toml`, modules mirroring vmctl). Port only the genuinely reusable
-logic from `sync.py`:
-
-- SSH/SFTP connection (`SSHConnection`) and the file-diff **sync engine** (mtime/size
-  skip + `exclude` glob handling).
-- The Windows **primitive implementations**: service control (`sc.exe`), process kill
-  (`taskkill`/PowerShell), file remove/delete.
-
-Dropped on the floor: all VMware detection (→ vmctl), `scp`/`unc`/`local` transports,
-baked-in BarApp orchestration (→ user scripts), `remote_workspace.py`, `copy_sdk.bat`.
+- **Unit tests** run with no network/target.
+- **Integration tests** are **host-only**: they target a live SSH machine from
+  `SSS_HOST` / `SSS_USER` / `SSS_PASSWORD` (any reachable box — possibly a VM the
+  developer booted by hand). sss's own suite **never imports vmctl**. A VM-boot
+  harness that drives sss against a freshly-reverted VM, if wanted, lives in the
+  **vmctl** repo's tests, not here.
 
 ## Side utilities (not part of sss)
 
@@ -134,7 +148,10 @@ baked-in BarApp orchestration (→ user scripts), `remote_workspace.py`, `copy_s
 
 ## Related repos
 
-- `../vmctl` — VMware Workstation wrapper (hard dependency for VM targets).
+- `../vmctl` — VMware Workstation wrapper. **Consumer of sss**, not a dependency:
+  vmctl embeds sss (git submodule) and calls `sss.connect(host=<guest_ip>, …)` to
+  sync into a VM. The dependency points vmctl → sss, never the reverse.
 - `../legacy-sync` — the legacy monolith being replaced.
 
-> Status: design settled (grilling complete 2026-06-22). Ready to scaffold the package.
+> Status: re-grilled 2026-06-24 — VM/vmctl coupling removed; sss is standalone and
+> target-agnostic. vmctl inherits sss's sync features as a consumer.

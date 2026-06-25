@@ -4,7 +4,11 @@ Date: 2026-06-22
 
 ## Status
 
-Accepted
+Superseded by [0004-standalone-no-vm-coupling](0004-standalone-no-vm-coupling.md) (2026-06-24).
+
+The dependency direction is now **inverted**: sss takes no VM dependency, and
+vmctl (a VM-control tool) instead depends on sss and feeds it a resolved host.
+The reasoning below is retained for history.
 
 ## Context
 

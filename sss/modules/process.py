@@ -11,7 +11,7 @@ from abc import ABC, abstractmethod
 
 from ..connection import Connection
 
-# Never killed by name matching (would break the session / VM tooling).
+# Never killed by name matching (would break the SSH session or host tooling).
 _PROTECTED = {
     "powershell.exe", "cmd.exe", "conhost.exe", "wsmprovhost.exe",
     "winrm.exe", "vmtoolsd.exe", "vmware-authd.exe",

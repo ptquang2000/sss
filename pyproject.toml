@@ -9,12 +9,6 @@ description = "SSH file-sync + remote primitives tool"
 requires-python = ">=3.10"
 dependencies = ["click>=8.0", "paramiko>=3.0"]
 
-[project.optional-dependencies]
-# vmctl is required only for VM targets (auto-detect a running VM). Pure
-# --host SSH usage works without it. vmctl is a sibling repo, not on PyPI;
-# install it from a local checkout, e.g. `pip install -e ../vmctl`.
-vm = ["vmctl"]
-
 [project.scripts]
 sss = "sss.cli:cli"
 
