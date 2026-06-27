@@ -38,9 +38,13 @@ what a VM is. Concretely:
 - **The dependency direction inverts.** vmctl embeds sss (git submodule) and calls
   `sss.connect(host=<guest_ip>, user=…, password=…)` after resolving the VM itself.
   vmctl → sss; never sss → vmctl.
-- **Tests:** sss's integration suite is host-only (`SSS_HOST`/`SSS_USER`/
-  `SSS_PASSWORD`). The vmctl seam test is deleted. Any VM-boot harness that drives
-  sss against a reverted VM belongs to vmctl's test suite.
+- **Tests:** sss's own suite is **unit-only** — no `SSS_HOST`, no live SSH
+  dependency, no vmctl import. The vmctl seam test is deleted. The live coverage
+  of sss's primitives (real SFTP / `sc.exe` / `del` / `rmdir` / `taskkill` /
+  session-survival) lives in **vmctl's** integration suite, which boots a VM and
+  drives sss against it over SSH — the only place a VM-boot harness belongs.
+  (Originally this was a host-only `SSS_HOST` suite kept inside sss; it was later
+  consolidated into vmctl so sss carries no live-target machinery at all.)
 
 `start_process`'s interactive-scheduled-task mechanism ([ADR-0002](0002-start-process-interactive-launch.md))
 is **unchanged** — it is a Windows-over-SSH property (escaping the SSH job object,

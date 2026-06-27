@@ -132,12 +132,14 @@ design.
 
 ## Testing
 
-- **Unit tests** run with no network/target.
-- **Integration tests** are **host-only**: they target a live SSH machine from
-  `SSS_HOST` / `SSS_USER` / `SSS_PASSWORD` (any reachable box — possibly a VM the
-  developer booted by hand). sss's own suite **never imports vmctl**. A VM-boot
-  harness that drives sss against a freshly-reverted VM, if wanted, lives in the
-  **vmctl** repo's tests, not here.
+- **Unit tests only.** sss's own suite runs with no network/target and **never
+  imports vmctl**. There is no host gate, no `SSS_HOST`, no live SSH dependency.
+- **Live coverage lives in vmctl.** The integration tests that exercise sss's
+  real primitives over SSH (SFTP, `sc.exe`, `del`/`rmdir`, `taskkill`,
+  session-survival) were moved into the **vmctl** repo's `tests/test_integration.py`.
+  vmctl boots the VM, resolves its IP + guest creds, and hands sss a plain host
+  via `connect(...)` — the production handoff path. This keeps the dependency
+  direction one-way (vmctl → sss) per [ADR-0004](docs/adr/0004-standalone-no-vm-coupling.md).
 
 ## Side utilities (not part of sss)
 

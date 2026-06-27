@@ -103,10 +103,12 @@ See [`CONTEXT.md`](CONTEXT.md) and
 ## Tests
 
 ```bash
-pytest tests -k "not integration"   # unit tests, no network
-pytest tests                        # + live suite: targets SSS_HOST, fails loud if unset
+pytest tests   # unit tests, no network or live target required
 ```
 
-The live suite always runs under plain `pytest` (no opt-in gate) and **fails**
-rather than skips when no `SSS_HOST` SSH target is available. See
-[tests/INTEGRATION.md](tests/INTEGRATION.md) for setup.
+sss ships a **unit-only** suite — it needs no SSH host and never imports vmctl.
+The live coverage of sss's own primitives (real SFTP, `sc.exe`, `del`/`rmdir`,
+`taskkill`, session-survival) runs in **vmctl's** integration suite, which boots
+a VM and drives sss against it over SSH. That keeps sss target-agnostic per
+[`docs/adr/0004-standalone-no-vm-coupling.md`](docs/adr/0004-standalone-no-vm-coupling.md);
+see the parent repo's `tests/INTEGRATION.md` for how to run it.
