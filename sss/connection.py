@@ -123,7 +123,19 @@ class SSHConnection(Connection):
         return CommandResult(code, out, err)
 
     def put(self, local_path: str, remote_path: str) -> None:
-        self._sftp.put(local_path, remote_path)
+        try:
+            self._sftp.put(local_path, remote_path)
+        except OSError as e:
+            # Paramiko surfaces the server's SSH_FX_* code as a bare OSError --
+            # often the opaque "Failure" (SSH_FX_FAILURE) with no path or cause.
+            # Name the file and the usual culprit so the failure is actionable:
+            # on Windows the target is most often locked by a running process
+            # (stop it in pre_sync), or the destination path is access-denied.
+            raise SssError(
+                f"failed to upload {local_path} -> {remote_path}: {e}. "
+                "The remote file is likely in use by a running process (stop it "
+                "in pre_sync) or the destination is access-denied."
+            ) from e
 
     def stat(self, remote_path: str) -> Optional[RemoteStat]:
         try:
