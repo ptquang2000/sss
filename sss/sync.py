@@ -33,9 +33,10 @@ class SyncResult:
 
 
 class SyncEngine:
-    def __init__(self, base_dir: str = None, log: Callable[[str], None] = None):
-        # Source paths are resolved against base_dir (legacy used %USERPROFILE%).
-        self.base_dir = base_dir or os.environ.get("USERPROFILE") or os.path.expanduser("~")
+    def __init__(self, project_dir: str = None, log: Callable[[str], None] = None):
+        # A profile's relative source paths resolve against project_dir, the repo
+        # root (default cwd; was base_dir/%USERPROFILE% before ADR-0005).
+        self.project_dir = project_dir or os.getcwd()
         self._log = log or (lambda msg: None)
 
     # -- helpers -----------------------------------------------------------
@@ -95,8 +96,8 @@ class SyncEngine:
         """Ad-hoc single ``source`` -> ``dest`` transfer (no profile/excludes/vars).
 
         ``source`` is resolved **as-typed** -- absolute, else relative to the
-        current directory (*not* ``base_dir``); it is normalized to absolute
-        here so the configured ``base_dir`` is irrelevant. ``dest`` is always a
+        current directory (*not* ``project_dir``); it is normalized to absolute
+        here so the resolution root is irrelevant. ``dest`` is always a
         remote directory: a file source lands at ``dest/<basename>``; a
         directory source has its **contents merged into ``dest``** (no
         ``dest/<dirname>`` nesting). Reuses the same skip-unchanged + recursive
@@ -110,7 +111,7 @@ class SyncEngine:
         return result
 
     def _abs(self, rel: str) -> str:
-        return os.path.normpath(os.path.join(self.base_dir, rel))
+        return os.path.normpath(os.path.join(self.project_dir, rel))
 
     def _sync_one(self, conn, src, dest_dirs, exclude, abs_roots, abs_optional,
                   sync_optional, result: SyncResult) -> None:

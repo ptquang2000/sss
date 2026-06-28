@@ -30,11 +30,10 @@ applies. See [`config.example.json`](config.example.json).
 
 ```jsonc
 {
-  "base_dir": "C:\\Users\\you",
   "profiles": {
     "git@github.com:foocorp/barapp.git": {
       "variables": { "build_cfg": "Release", "arch": "x86", "vm_dest_dir": "C:/Progra~2/FooCorp/BarApp Client" },
-      "source_dirs": { "barapp/bin/{build_cfg}": ["{vm_dest_dir}"] },
+      "source_dirs": { "bin/{build_cfg}": ["{vm_dest_dir}"] },
       "exclude": ["*.pdb"],
       "pre_sync":  [{ "op": "stop_service",  "args": { "name": "FooSvc" } }],
       "post_sync": [{ "op": "start_service", "args": { "name": "FooSvc" } }]
@@ -44,8 +43,11 @@ applies. See [`config.example.json`](config.example.json).
 ```
 
 A profile defines the sync mapping (`source_dirs` → dest, `optional_dirs`,
-`source_files`, `exclude`) plus the lifecycle scripts. `{var}` placeholders are
-substituted from `variables` (and CLI selectors like `--debug`/`--arch`).
+`source_files`, `exclude`) plus the lifecycle scripts. Source keys are
+**repo-relative**: they resolve against `--project-dir` (the repo root, default
+cwd), which is also what selects the profile by git remote (see ADR-0005).
+`{var}` placeholders are substituted from `variables` (and CLI selectors like
+`--debug`/`--arch`).
 
 ## CLI
 

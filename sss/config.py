@@ -1,6 +1,6 @@
 """Central config at ``~/.sss/config.json`` (a ``~/.<tool>/config.json`` path
-convention; no dependency implied -- config holds only ``base_dir`` + profiles,
-never any host or credentials).
+convention; no dependency implied -- config holds only profiles, never any host
+or credentials).
 
 A profiles map is selected by the project's git-remote URL: run sss from inside
 a repo and it picks the matching profile. Each profile defines the sync mapping
@@ -20,8 +20,6 @@ from .exceptions import SssError
 CONFIG_PATH = Path.home() / ".sss" / "config.json"
 
 _DEFAULTS = {
-    # Root that source paths are resolved against (legacy used %USERPROFILE%).
-    "base_dir": None,
     "profiles": {},
 }
 
@@ -30,9 +28,9 @@ _DEFAULTS = {
 class Profile:
     """A resolved sync profile: a mapping + lifecycle scripts.
 
-    ``source_dirs`` / ``optional_dirs`` map a source path (relative to
-    ``base_dir``) to one or more destination directories on the target.
-    ``source_files`` maps an individual source file to a destination directory.
+    ``source_dirs`` / ``optional_dirs`` map a source path (relative to the
+    ``project_dir`` repo root) to one or more destination directories on the
+    target. ``source_files`` maps an individual source file to a dest directory.
     """
 
     name: str

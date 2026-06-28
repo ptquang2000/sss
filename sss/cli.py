@@ -81,7 +81,7 @@ def cmd_push(host, user, password, port, project_dir, source, dest):
     """Push SOURCE to remote directory DEST -- no profile, no hooks.
 
     SOURCE is resolved as-typed (absolute, else relative to the current
-    directory -- not the profile's base_dir). DEST is always a remote
+    directory -- not the profile's project_dir root). DEST is always a remote
     directory: a file lands at DEST/<basename>; a directory has its CONTENTS
     merged into DEST (rsync trailing-slash semantics -- it is NOT nested as
     DEST/<dirname>, and there is no rename). Files already up to date on the

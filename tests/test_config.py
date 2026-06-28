@@ -16,13 +16,13 @@ def _write_config(tmp_path, data):
 
 def test_load_missing_returns_defaults(tmp_path):
     cfg = config.load_config(tmp_path / "nope.json")
-    assert cfg["profiles"] == {} and cfg["base_dir"] is None
+    assert cfg["profiles"] == {}
 
 
 def test_load_fills_defaults(tmp_path):
     path = _write_config(tmp_path, {"profiles": {"r": {}}})
     cfg = config.load_config(path)
-    assert cfg["base_dir"] is None and "r" in cfg["profiles"]
+    assert "r" in cfg["profiles"]
 
 
 def test_select_profile_single_fallback(tmp_path):

@@ -26,7 +26,7 @@ def test_uploads_new_files(tmp_path):
 
     profile = Profile("p", source_dirs={"src": ["/remote/dest"]})
     conn = FakeConnection()  # remote empty -> everything is new
-    result = SyncEngine(base_dir=str(tmp_path)).run(profile, conn)
+    result = SyncEngine(project_dir=str(tmp_path)).run(profile, conn)
 
     uploaded = {r for _, r in conn.uploaded}
     assert "/remote/dest/a.txt" in uploaded
@@ -44,7 +44,7 @@ def test_skips_unchanged_by_size_and_mtime(tmp_path):
     # Remote is same size and newer -> should skip.
     conn = FakeConnection(remote={"/remote/dest/a.txt": RemoteStat(size, mtime + 100)})
     profile = Profile("p", source_dirs={"src": ["/remote/dest"]})
-    result = SyncEngine(base_dir=str(tmp_path)).run(profile, conn)
+    result = SyncEngine(project_dir=str(tmp_path)).run(profile, conn)
 
     assert conn.uploaded == []
     assert "/remote/dest/a.txt" in result.skipped
@@ -60,7 +60,7 @@ def test_reuploads_when_local_newer(tmp_path):
     # Remote same size but older -> re-upload.
     conn = FakeConnection(remote={"/remote/dest/a.txt": RemoteStat(size, mtime - 100)})
     profile = Profile("p", source_dirs={"src": ["/remote/dest"]})
-    SyncEngine(base_dir=str(tmp_path)).run(profile, conn)
+    SyncEngine(project_dir=str(tmp_path)).run(profile, conn)
 
     assert ("/remote/dest/a.txt") in {r for _, r in conn.uploaded}
 
@@ -73,7 +73,7 @@ def test_reuploads_when_size_differs(tmp_path):
 
     conn = FakeConnection(remote={"/remote/dest/a.txt": RemoteStat(99999, mtime + 100)})
     profile = Profile("p", source_dirs={"src": ["/remote/dest"]})
-    SyncEngine(base_dir=str(tmp_path)).run(profile, conn)
+    SyncEngine(project_dir=str(tmp_path)).run(profile, conn)
 
     assert conn.uploaded  # size mismatch forces upload despite newer mtime
 
@@ -85,7 +85,7 @@ def test_exclude_glob_honored(tmp_path):
 
     profile = Profile("p", source_dirs={"src": ["/remote/dest"]}, exclude=["*.pdb"])
     conn = FakeConnection()
-    SyncEngine(base_dir=str(tmp_path)).run(profile, conn)
+    SyncEngine(project_dir=str(tmp_path)).run(profile, conn)
 
     uploaded = {r for _, r in conn.uploaded}
     assert "/remote/dest/keep.txt" in uploaded
@@ -102,7 +102,7 @@ def test_variable_substitution(tmp_path):
         variables={"build_cfg": "Release", "arch": "x64"},
     )
     conn = FakeConnection()
-    SyncEngine(base_dir=str(tmp_path)).run(profile, conn)
+    SyncEngine(project_dir=str(tmp_path)).run(profile, conn)
 
     assert ("/remote/Release/x64/a.txt") in {r for _, r in conn.uploaded}
 
@@ -113,7 +113,7 @@ def test_multiple_destinations(tmp_path):
 
     profile = Profile("p", source_dirs={"src": ["/dest1", "/dest2"]})
     conn = FakeConnection()
-    SyncEngine(base_dir=str(tmp_path)).run(profile, conn)
+    SyncEngine(project_dir=str(tmp_path)).run(profile, conn)
 
     uploaded = {r for _, r in conn.uploaded}
     assert "/dest1/a.txt" in uploaded
@@ -130,11 +130,11 @@ def test_optional_dirs_skipped_unless_requested(tmp_path):
     )
 
     conn = FakeConnection()
-    SyncEngine(base_dir=str(tmp_path)).run(profile, conn, sync_optional=False)
+    SyncEngine(project_dir=str(tmp_path)).run(profile, conn, sync_optional=False)
     assert all("b.txt" not in r for _, r in conn.uploaded)
 
     conn2 = FakeConnection()
-    SyncEngine(base_dir=str(tmp_path)).run(profile, conn2, sync_optional=True)
+    SyncEngine(project_dir=str(tmp_path)).run(profile, conn2, sync_optional=True)
     assert any("b.txt" in r for _, r in conn2.uploaded)
 
 
@@ -142,14 +142,14 @@ def test_source_files_mapping(tmp_path):
     _write(str(tmp_path / "tools" / "helper.dll"))
     profile = Profile("p", source_files={"tools/helper.dll": "/remote/bin"})
     conn = FakeConnection()
-    SyncEngine(base_dir=str(tmp_path)).run(profile, conn)
+    SyncEngine(project_dir=str(tmp_path)).run(profile, conn)
     assert ("/remote/bin/helper.dll") in {r for _, r in conn.uploaded}
 
 
 def test_missing_source_recorded(tmp_path):
     profile = Profile("p", source_dirs={"nope": ["/dest"]})
     conn = FakeConnection()
-    result = SyncEngine(base_dir=str(tmp_path)).run(profile, conn)
+    result = SyncEngine(project_dir=str(tmp_path)).run(profile, conn)
     assert result.missing and not conn.uploaded
 
 
@@ -157,7 +157,7 @@ def test_remote_dirs_created(tmp_path):
     _write(str(tmp_path / "src" / "a.txt"))
     profile = Profile("p", source_dirs={"src": ["/remote/dest"]})
     conn = FakeConnection()
-    SyncEngine(base_dir=str(tmp_path)).run(profile, conn)
+    SyncEngine(project_dir=str(tmp_path)).run(profile, conn)
     assert "/remote/dest" in conn.mkdirs
 
 
@@ -203,14 +203,14 @@ def test_push_skips_unchanged(tmp_path):
     assert "/remote/dest/a.txt" in result.skipped
 
 
-def test_push_resolves_source_against_cwd_not_base_dir(tmp_path, monkeypatch):
-    # base_dir points elsewhere; a cwd-relative source must resolve against cwd.
+def test_push_resolves_source_against_cwd_not_project_dir(tmp_path, monkeypatch):
+    # project_dir points elsewhere; a cwd-relative source must resolve against cwd.
     work = tmp_path / "work"
     _write(str(work / "note.txt"), "hi")
     monkeypatch.chdir(work)
 
     conn = FakeConnection()
-    SyncEngine(base_dir=str(tmp_path / "somewhere_else")).sync_path(conn, "note.txt", "/remote/dest")
+    SyncEngine(project_dir=str(tmp_path / "somewhere_else")).sync_path(conn, "note.txt", "/remote/dest")
 
     assert "/remote/dest/note.txt" in {r for _, r in conn.uploaded}
 

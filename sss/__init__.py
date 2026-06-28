@@ -33,10 +33,10 @@ class _SyncSubsystem:
     """Exposes ``s.sync.run()`` while owning the engine + bound profile."""
 
     def __init__(self, connection: Connection, profile: Optional[Profile],
-                 base_dir: str = None, log: Callable[[str], None] = None):
+                 project_dir: str = None, log: Callable[[str], None] = None):
         self._conn = connection
         self._profile = profile
-        self._engine = SyncEngine(base_dir=base_dir, log=log)
+        self._engine = SyncEngine(project_dir=project_dir, log=log)
 
     def run(self, profile: Profile = None, sync_optional: bool = False) -> dict:
         profile = profile or self._profile
@@ -48,7 +48,7 @@ class _SyncSubsystem:
         """Ad-hoc transfer of ``source`` to remote directory ``dest``.
 
         Profile-less and hook-less (see ``push``): ``source`` is resolved
-        as-typed (cwd-relative or absolute, not ``base_dir``), ``dest`` is a
+        as-typed (cwd-relative or absolute, not ``project_dir``), ``dest`` is a
         remote directory. Reuses the engine's skip-unchanged + remote-mkdir.
         """
         return self._engine.sync_path(self._conn, source, dest).as_dict()
@@ -58,7 +58,7 @@ class Sss:
     """A connected session: subsystem accessors over one target Connection."""
 
     def __init__(self, connection: Connection, profile: Profile = None,
-                 base_dir: str = None, meta: dict = None,
+                 project_dir: str = None, meta: dict = None,
                  log: Callable[[str], None] = None):
         self._conn = connection
         self.profile = profile
@@ -66,7 +66,7 @@ class Sss:
         self.service = WindowsServiceModule(connection)
         self.process = WindowsProcessModule(connection)
         self.files = WindowsFilesModule(connection)
-        self.sync = _SyncSubsystem(connection, profile, base_dir=base_dir, log=log)
+        self.sync = _SyncSubsystem(connection, profile, project_dir=project_dir, log=log)
         self.scripts = ScriptRunner(self)
 
     def exec(self, cmd: str) -> dict:
@@ -101,7 +101,6 @@ def connect(
     profile: Profile = None,
     project_dir: str = None,
     extra_vars: dict = None,
-    base_dir: str = None,
     log: Callable[[str], None] = None,
 ) -> Sss:
     """Resolve a target, open the connection, and return a ready ``Sss`` session.
@@ -110,6 +109,10 @@ def connect(
     fast. ``user`` / ``password`` are optional (publickey/agent auth works
     without them). The profile is taken as given, else auto-selected from the
     project's git remote for sync/lifecycle.
+
+    ``project_dir`` does double duty (ADR-0005): it selects the profile by git
+    remote *and* is the root that the profile's relative source paths resolve
+    against. It defaults to cwd in both roles.
     """
     if profile is None:
         config = load_config()
@@ -117,10 +120,8 @@ def connect(
             profile = select_profile(config, project_dir=project_dir, extra_vars=extra_vars)
         except SssError:
             profile = None  # exec/service/etc. don't need a profile
-        if base_dir is None:
-            base_dir = (config or {}).get("base_dir")
 
     connection, meta = Target.resolve(
         host=host, user=user, password=password, port=port
     )
-    return Sss(connection, profile=profile, base_dir=base_dir, meta=meta, log=log)
+    return Sss(connection, profile=profile, project_dir=project_dir, meta=meta, log=log)

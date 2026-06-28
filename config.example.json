@@ -1,5 +1,4 @@
 {
-  "base_dir": "C:\\Users\\you",
   "profiles": {
     "git@github.com:foocorp/barapp.git": {
       "variables": {
@@ -8,10 +7,10 @@
         "vm_dest_dir": "C:/Progra~2/FooCorp/BarApp Client"
       },
       "source_dirs": {
-        "barapp/bin/{build_cfg}": ["{vm_dest_dir}"]
+        "bin/{build_cfg}": ["{vm_dest_dir}"]
       },
       "optional_dirs": {
-        "barapp/symbols/{build_cfg}": ["{vm_dest_dir}/symbols"]
+        "symbols/{build_cfg}": ["{vm_dest_dir}/symbols"]
       },
       "source_files": {
         "tools/helper.dll": "{vm_dest_dir}"
