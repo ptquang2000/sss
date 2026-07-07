@@ -14,9 +14,10 @@ Two entry points:
 An MCP server can import and call these directly.
 """
 
-from typing import Callable, Optional
+from pathlib import Path
+from typing import Callable, Optional, Union
 
-from .config import Profile, load_config, select_profile
+from .config import CONFIG_PATH, Profile, load_config, select_profile
 from .connection import Connection
 from .exceptions import SssError
 from .modules.files import WindowsFilesModule
@@ -101,6 +102,7 @@ def connect(
     profile: Profile = None,
     project_dir: str = None,
     extra_vars: dict = None,
+    config_path: Union[str, Path] = None,
     log: Callable[[str], None] = None,
 ) -> Sss:
     """Resolve a target, open the connection, and return a ready ``Sss`` session.
@@ -113,11 +115,17 @@ def connect(
     ``project_dir`` does double duty (ADR-0005): it selects the profile by git
     remote *and* is the root that the profile's relative source paths resolve
     against. It defaults to cwd in both roles.
+
+    ``config_path`` (ADR-0006) points sss at a caller-owned config file; when
+    omitted it falls back to the sss default ``~/.sss/config.json``. sss still
+    owns the profile schema and all parsing -- the caller supplies only the path.
     """
     if profile is None:
-        config = load_config()
+        effective_path = Path(config_path) if config_path is not None else CONFIG_PATH
+        config = load_config(effective_path)
         try:
-            profile = select_profile(config, project_dir=project_dir, extra_vars=extra_vars)
+            profile = select_profile(config, project_dir=project_dir,
+                                     extra_vars=extra_vars, config_path=effective_path)
         except SssError:
             profile = None  # exec/service/etc. don't need a profile
 

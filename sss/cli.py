@@ -30,13 +30,17 @@ def target_options(f):
     f = click.option("--password", default=None, help="SSH password (optional; publickey/agent otherwise).")(f)
     f = click.option("--port", default=22, show_default=True, help="SSH port.")(f)
     f = click.option("--project-dir", default=None, help="Repo dir for git-remote profile selection.")(f)
+    f = click.option("--config", "config_path", default=None,
+                     help="Config file to load profiles from (default: ~/.sss/config.json).")(f)
     return f
 
 
-def _session(host, user, password, port, project_dir, extra_vars=None, need_profile=False):
+def _session(host, user, password, port, project_dir, config_path=None,
+             extra_vars=None, need_profile=False):
     session = connect(
         host=host, user=user, password=password, port=port,
-        project_dir=project_dir, extra_vars=extra_vars, log=lambda m: click.echo(m, err=True),
+        project_dir=project_dir, extra_vars=extra_vars, config_path=config_path,
+        log=lambda m: click.echo(m, err=True),
     )
     if need_profile and session.profile is None:
         session.close()
@@ -59,12 +63,13 @@ def cli():
 @click.option("--release", "build_cfg", flag_value="Release", default=True, help="Sync Release binaries (default).")
 @click.option("--arch", type=click.Choice(["x64", "x86", "ARM64", "win32"]), default=None,
               help="Architecture selector, fed to {arch} substitution.")
-def cmd_sync(host, user, password, port, project_dir, sync_optional, build_cfg, arch):
+def cmd_sync(host, user, password, port, project_dir, config_path, sync_optional, build_cfg, arch):
     extra_vars = {"build_cfg": build_cfg}
     if arch:
         extra_vars["arch"] = arch
     try:
-        with _session(host, user, password, port, project_dir, extra_vars, need_profile=True) as s:
+        with _session(host, user, password, port, project_dir, config_path,
+                      extra_vars=extra_vars, need_profile=True) as s:
             _out(s.run_lifecycle(sync_optional=sync_optional))
     except SssError as e:
         _err(str(e))
@@ -77,7 +82,7 @@ def cmd_sync(host, user, password, port, project_dir, sync_optional, build_cfg, 
 @target_options
 @click.argument("source")
 @click.argument("dest")
-def cmd_push(host, user, password, port, project_dir, source, dest):
+def cmd_push(host, user, password, port, project_dir, config_path, source, dest):
     """Push SOURCE to remote directory DEST -- no profile, no hooks.
 
     SOURCE is resolved as-typed (absolute, else relative to the current
@@ -88,7 +93,7 @@ def cmd_push(host, user, password, port, project_dir, source, dest):
     target are skipped.
     """
     try:
-        with _session(host, user, password, port, project_dir) as s:
+        with _session(host, user, password, port, project_dir, config_path) as s:
             _out(s.sync.path(source, dest))
     except SssError as e:
         _err(str(e))
@@ -100,9 +105,9 @@ def cmd_push(host, user, password, port, project_dir, source, dest):
 @cli.command("exec")
 @target_options
 @click.argument("command")
-def cmd_exec(host, user, password, port, project_dir, command):
+def cmd_exec(host, user, password, port, project_dir, config_path, command):
     try:
-        with _session(host, user, password, port, project_dir) as s:
+        with _session(host, user, password, port, project_dir, config_path) as s:
             _out(s.exec(command))
     except SssError as e:
         _err(str(e))
@@ -119,9 +124,9 @@ def service():
 @service.command("stop")
 @target_options
 @click.argument("name")
-def service_stop(host, user, password, port, project_dir, name):
+def service_stop(host, user, password, port, project_dir, config_path, name):
     try:
-        with _session(host, user, password, port, project_dir) as s:
+        with _session(host, user, password, port, project_dir, config_path) as s:
             _out(s.service.stop(name))
     except SssError as e:
         _err(str(e))
@@ -130,9 +135,9 @@ def service_stop(host, user, password, port, project_dir, name):
 @service.command("start")
 @target_options
 @click.argument("name")
-def service_start(host, user, password, port, project_dir, name):
+def service_start(host, user, password, port, project_dir, config_path, name):
     try:
-        with _session(host, user, password, port, project_dir) as s:
+        with _session(host, user, password, port, project_dir, config_path) as s:
             _out(s.service.start(name))
     except SssError as e:
         _err(str(e))
@@ -149,9 +154,9 @@ def process():
 @process.command("kill")
 @target_options
 @click.argument("name")
-def process_kill(host, user, password, port, project_dir, name):
+def process_kill(host, user, password, port, project_dir, config_path, name):
     try:
-        with _session(host, user, password, port, project_dir) as s:
+        with _session(host, user, password, port, project_dir, config_path) as s:
             _out(s.process.kill(name))
     except SssError as e:
         _err(str(e))
@@ -161,9 +166,9 @@ def process_kill(host, user, password, port, project_dir, name):
 @target_options
 @click.argument("exe_path")
 @click.argument("args", nargs=-1)
-def process_start(host, user, password, port, project_dir, exe_path, args):
+def process_start(host, user, password, port, project_dir, config_path, exe_path, args):
     try:
-        with _session(host, user, password, port, project_dir) as s:
+        with _session(host, user, password, port, project_dir, config_path) as s:
             _out(s.process.start(exe_path, *args))
     except SssError as e:
         _err(str(e))
@@ -180,9 +185,9 @@ def files():
 @files.command("remove")
 @target_options
 @click.argument("paths", nargs=-1, required=True)
-def files_remove(host, user, password, port, project_dir, paths):
+def files_remove(host, user, password, port, project_dir, config_path, paths):
     try:
-        with _session(host, user, password, port, project_dir) as s:
+        with _session(host, user, password, port, project_dir, config_path) as s:
             _out(s.files.remove(list(paths)))
     except SssError as e:
         _err(str(e))
@@ -191,9 +196,9 @@ def files_remove(host, user, password, port, project_dir, paths):
 @files.command("delete")
 @target_options
 @click.argument("paths", nargs=-1, required=True)
-def files_delete(host, user, password, port, project_dir, paths):
+def files_delete(host, user, password, port, project_dir, config_path, paths):
     try:
-        with _session(host, user, password, port, project_dir) as s:
+        with _session(host, user, password, port, project_dir, config_path) as s:
             _out(s.files.delete(list(paths)))
     except SssError as e:
         _err(str(e))

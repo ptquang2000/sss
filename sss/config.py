@@ -92,14 +92,18 @@ def get_git_remote_url(project_path: str) -> Optional[str]:
     return None
 
 
-def select_profile(config: dict, project_dir: str = None, extra_vars: dict = None) -> Profile:
+def select_profile(config: dict, project_dir: str = None, extra_vars: dict = None,
+                   config_path: Path = CONFIG_PATH) -> Profile:
     """Pick the profile matching the project's git remote.
 
     Falls back to the sole profile when there is exactly one; raises otherwise.
+    ``config_path`` is used only to name the file in the empty-profiles error --
+    the caller (e.g. via ``connect(config_path=…)``) passes the file actually
+    consulted so the message points at the real path, not the sss default.
     """
     profiles = config.get("profiles", {})
     if not profiles:
-        raise SssError(f"No profiles configured in {CONFIG_PATH}")
+        raise SssError(f"No profiles configured in {config_path}")
 
     project_path = project_dir or os.getcwd()
     remote_url = get_git_remote_url(project_path)

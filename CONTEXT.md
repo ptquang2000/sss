@@ -25,7 +25,7 @@
 
 ## Sync config
 
-- Single **central config** at `~/.sss/config.json`. (Resemblance to `~/.vmctl/config.json` is convention, **not** a dependency or shared file.)
+- **Config-location-agnostic (ADR-0006).** sss owns the profile **schema**; the **caller owns the location**. `connect(..., config_path=…)` (and CLI `--config`) point sss at any config file; `load_config(path)`/`save_config(path)` already took a path. `~/.sss/config.json` is merely the **default** when no `config_path` is supplied — not a hardcoded location. (A consumer like vmctl points sss at its own file, `~/.vmctl/sync.json`, without sss knowing what vmctl is.)
 - Holds **only profiles** — the sync mapping (`source_dirs` → dest, `optional_dirs`, `exclude`, `source_files`) and lifecycle **scripts/hooks**. Holds **no target/host/credentials** (those are strictly CLI/library args).
 - The applicable profile is **auto-selected by the project's git-remote URL** (legacy UX): run sss inside the repo and it picks the match. Falls back to the sole profile when exactly one is configured.
 

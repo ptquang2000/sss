@@ -24,9 +24,12 @@ pip install -e .
 
 ## Configuration
 
-Central config at `~/.sss/config.json`. The profile is auto-selected by the
+Config defaults to `~/.sss/config.json`. The profile is auto-selected by the
 project's git-remote URL — run sss from inside the repo and the matching profile
-applies. See [`config.example.json`](config.example.json).
+applies. See [`config.example.json`](config.example.json). A caller can point sss
+at another file: `sss <cmd> --config <path> …` on the CLI, or
+`connect(config_path=…)` in the library (the default file is merely the fallback
+when no path is given).
 
 ```jsonc
 {
