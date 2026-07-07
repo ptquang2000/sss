@@ -81,6 +81,12 @@ def get_git_remote_url(project_path: str) -> Optional[str]:
         result = subprocess.run(
             ["git", "config", "--get", "remote.origin.url"],
             cwd=project_path,
+            # stdin=DEVNULL is load-bearing, not hygiene: without it git inherits
+            # the parent's stdin, and when the parent is an MCP stdio server whose
+            # stdin is the JSON-RPC pipe, the capture_output pipes deadlock until
+            # the timeout fires -> git "returns" nothing -> profile auto-select
+            # silently fails. Detaching stdin breaks the inherited-handle cycle.
+            stdin=subprocess.DEVNULL,
             capture_output=True,
             text=True,
             timeout=5,
